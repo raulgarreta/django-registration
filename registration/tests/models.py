@@ -2,7 +2,7 @@ import datetime
 import re
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
 from django.core import mail
 from django.core import management
@@ -20,7 +20,7 @@ class RegistrationModelTests(TestCase):
     user_info = {'username': 'alice',
                  'password': 'swordfish',
                  'email': 'alice@example.com'}
-    
+
     def setUp(self):
         self.old_activation = getattr(settings, 'ACCOUNT_ACTIVATION_DAYS', None)
         settings.ACCOUNT_ACTIVATION_DAYS = 7
@@ -35,7 +35,7 @@ class RegistrationModelTests(TestCase):
         activation key.
         
         """
-        new_user = User.objects.create_user(**self.user_info)
+        new_user = get_user_model().objects.create_user(**self.user_info)
         profile = RegistrationProfile.objects.create_profile(new_user)
 
         self.assertEqual(RegistrationProfile.objects.count(), 1)
@@ -50,7 +50,7 @@ class RegistrationModelTests(TestCase):
         email.
         
         """
-        new_user = User.objects.create_user(**self.user_info)
+        new_user = get_user_model().objects.create_user(**self.user_info)
         profile = RegistrationProfile.objects.create_profile(new_user)
         profile.send_activation_email(Site.objects.get_current())
         self.assertEqual(len(mail.outbox), 1)
@@ -124,7 +124,7 @@ class RegistrationModelTests(TestCase):
         profile = RegistrationProfile.objects.get(user=new_user)
         activated = RegistrationProfile.objects.activate_user(profile.activation_key)
 
-        self.failUnless(isinstance(activated, User))
+        self.failUnless(isinstance(activated, get_user_model()))
         self.assertEqual(activated.id, new_user.id)
         self.failUnless(activated.is_active)
 
@@ -145,10 +145,10 @@ class RegistrationModelTests(TestCase):
         profile = RegistrationProfile.objects.get(user=new_user)
         activated = RegistrationProfile.objects.activate_user(profile.activation_key)
 
-        self.failIf(isinstance(activated, User))
+        self.failIf(isinstance(activated, get_user_model()))
         self.failIf(activated)
 
-        new_user = User.objects.get(username='alice')
+        new_user = get_user_model().objects.get(username='alice')
         self.failIf(new_user.is_active)
 
         profile = RegistrationProfile.objects.get(user=new_user)
@@ -203,7 +203,7 @@ class RegistrationModelTests(TestCase):
 
         RegistrationProfile.objects.delete_expired_users()
         self.assertEqual(RegistrationProfile.objects.count(), 1)
-        self.assertRaises(User.DoesNotExist, User.objects.get, username='bob')
+        self.assertRaises(get_user_model().DoesNotExist, get_user_model().objects.get, username='bob')
 
     def test_management_command(self):
         """
@@ -222,4 +222,4 @@ class RegistrationModelTests(TestCase):
 
         management.call_command('cleanupregistration')
         self.assertEqual(RegistrationProfile.objects.count(), 1)
-        self.assertRaises(User.DoesNotExist, User.objects.get, username='bob')
+        self.assertRaises(get_user_model().DoesNotExist, get_user_model().objects.get, username='bob')

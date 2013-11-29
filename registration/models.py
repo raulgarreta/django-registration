@@ -4,22 +4,12 @@ import random
 import re
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils.translation import ugettext_lazy as _
-
-try:
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-except ImportError:
-    from django.contrib.auth.models import User
-
-try:
-    from django.utils.timezone import now as datetime_now
-except ImportError:
-    datetime_now = datetime.datetime.now
+from django.utils.timezone import now as datetime_now
 
 
 SHA1_RE = re.compile('^[a-f0-9]{40}$')
@@ -69,9 +59,12 @@ class RegistrationManager(models.Manager):
                 profile.save()
                 return user
         return False
-    
-    def create_inactive_user(self, username, email, password,
-                             site, send_email=True):
+
+    def create_inactive_user(self, username_field,
+                             password,
+                             site,
+                             send_email=True,
+                             **other_fields):
         """
         Create a new, inactive ``User``, generate a
         ``RegistrationProfile`` and email its activation key to the
@@ -81,7 +74,8 @@ class RegistrationManager(models.Manager):
         user. To disable this, pass ``send_email=False``.
         
         """
-        new_user = User.objects.create_user(username, email, password)
+        new_user = get_user_model().objects.create_user(username_field, password,
+                                            **other_fields)
         new_user.is_active = False
         new_user.save()
 
@@ -104,13 +98,13 @@ class RegistrationManager(models.Manager):
         
         """
         salt = hashlib.sha1(str(random.random())).hexdigest()[:5]
-        username = user.username
+        username = user.get_username()
         if isinstance(username, unicode):
             username = username.encode('utf-8')
-        activation_key = hashlib.sha1(salt+username).hexdigest()
+        activation_key = hashlib.sha1(salt + username).hexdigest()
         return self.create(user=user,
                            activation_key=activation_key)
-        
+
     def delete_expired_users(self):
         """
         Remove expired instances of ``RegistrationProfile`` and their
@@ -158,7 +152,7 @@ class RegistrationManager(models.Manager):
                     if not user.is_active:
                         user.delete()
                         profile.delete()
-            except User.DoesNotExist:
+            except get_user_model().DoesNotExist:
                 profile.delete()
 
 class RegistrationProfile(models.Model):
@@ -178,19 +172,19 @@ class RegistrationProfile(models.Model):
     
     """
     ACTIVATED = u"ALREADY_ACTIVATED"
-    
-    user = models.ForeignKey(User, unique=True, verbose_name=_('user'))
+
+    user = models.ForeignKey(get_user_model(), unique=True, verbose_name=_('user'))
     activation_key = models.CharField(_('activation key'), max_length=40)
-    
+
     objects = RegistrationManager()
-    
+
     class Meta:
         verbose_name = _('registration profile')
         verbose_name_plural = _('registration profiles')
-    
+
     def __unicode__(self):
         return u"Registration information for %s" % self.user
-    
+
     def activation_key_expired(self):
         """
         Determine whether this ``RegistrationProfile``'s activation
@@ -263,9 +257,9 @@ class RegistrationProfile(models.Model):
                                    ctx_dict)
         # Email subject *must not* contain newlines
         subject = ''.join(subject.splitlines())
-        
+
         message = render_to_string('registration/activation_email.txt',
                                    ctx_dict)
-        
+
         self.user.email_user(subject, message, settings.DEFAULT_FROM_EMAIL)
-    
+

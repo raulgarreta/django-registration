@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth import login
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 
 from registration import signals
 from registration.views import RegistrationView as BaseRegistrationView
@@ -17,7 +17,7 @@ class RegistrationView(BaseRegistrationView):
     """
     def register(self, request, **cleaned_data):
         username, email, password = cleaned_data['username'], cleaned_data['email'], cleaned_data['password1']
-        User.objects.create_user(username, email, password)
+        get_user_model().objects.create_user(username, email, password)
 
         new_user = authenticate(username=username, password=password)
         login(request, new_user)

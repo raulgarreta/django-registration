@@ -9,7 +9,7 @@ you're using a custom model.
 """
 
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
@@ -28,7 +28,7 @@ class RegistrationForm(forms.Form):
 
     """
     required_css_class = 'required'
-    
+
     username = forms.RegexField(regex=r'^[\w.@+-]+$',
                                 max_length=30,
                                 label=_("Username"),
@@ -38,14 +38,14 @@ class RegistrationForm(forms.Form):
                                 label=_("Password"))
     password2 = forms.CharField(widget=forms.PasswordInput,
                                 label=_("Password (again)"))
-    
+
     def clean_username(self):
         """
         Validate that the username is alphanumeric and is not already
         in use.
         
         """
-        existing = User.objects.filter(username__iexact=self.cleaned_data['username'])
+        existing = get_user_model().objects.filter(username__iexact=self.cleaned_data['username'])
         if existing.exists():
             raise forms.ValidationError(_("A user with that username already exists."))
         else:
@@ -88,7 +88,7 @@ class RegistrationFormUniqueEmail(RegistrationForm):
         site.
         
         """
-        if User.objects.filter(email__iexact=self.cleaned_data['email']):
+        if get_user_model().objects.filter(email__iexact=self.cleaned_data['email']):
             raise forms.ValidationError(_("This email address is already in use. Please supply a different email address."))
         return self.cleaned_data['email']
 
@@ -107,7 +107,7 @@ class RegistrationFormNoFreeEmail(RegistrationForm):
                    'googlemail.com', 'hotmail.com', 'hushmail.com',
                    'msn.com', 'mail.ru', 'mailinator.com', 'live.com',
                    'yahoo.com']
-    
+
     def clean_email(self):
         """
         Check the supplied email address against a list of known free

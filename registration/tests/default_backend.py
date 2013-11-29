@@ -1,7 +1,7 @@
 import datetime
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
 from django.core import mail
 from django.core.urlresolvers import reverse
@@ -34,7 +34,7 @@ class DefaultBackendViewTests(TestCase):
         """
         self.old_activation = getattr(settings, 'ACCOUNT_ACTIVATION_DAYS', None)
         if self.old_activation is None:
-            settings.ACCOUNT_ACTIVATION_DAYS = 7 # pragma: no cover
+            settings.ACCOUNT_ACTIVATION_DAYS = 7  # pragma: no cover
 
     def tearDown(self):
         """
@@ -43,7 +43,7 @@ class DefaultBackendViewTests(TestCase):
 
         """
         if self.old_activation is None:
-            settings.ACCOUNT_ACTIVATION_DAYS = self.old_activation # pragma: no cover
+            settings.ACCOUNT_ACTIVATION_DAYS = self.old_activation  # pragma: no cover
 
     def test_allow(self):
         """
@@ -63,7 +63,7 @@ class DefaultBackendViewTests(TestCase):
         # the 'registration is closed' message.
         resp = self.client.get(reverse('registration_register'))
         self.assertRedirects(resp, reverse('registration_disallowed'))
-        
+
         resp = self.client.post(reverse('registration_register'),
                                 data={'username': 'bob',
                                       'email': 'bob@example.com',
@@ -100,14 +100,14 @@ class DefaultBackendViewTests(TestCase):
                                       'password2': 'secret'})
         self.assertRedirects(resp, reverse('registration_complete'))
 
-        new_user = User.objects.get(username='bob')
+        new_user = get_user_model().objects.get(username='bob')
 
         self.failUnless(new_user.check_password('secret'))
         self.assertEqual(new_user.email, 'bob@example.com')
 
         # New user must not be active.
         self.failIf(new_user.is_active)
-        
+
         # A registration profile was created, and an activation email
         # was sent.
         self.assertEqual(RegistrationProfile.objects.count(), 1)
@@ -129,13 +129,13 @@ class DefaultBackendViewTests(TestCase):
                                       'password2': 'secret'})
         self.assertEqual(302, resp.status_code)
 
-        new_user = User.objects.get(username='bob')
+        new_user = get_user_model().objects.get(username='bob')
 
         self.failUnless(new_user.check_password('secret'))
         self.assertEqual(new_user.email, 'bob@example.com')
 
         self.failIf(new_user.is_active)
-        
+
         self.assertEqual(RegistrationProfile.objects.count(), 1)
         self.assertEqual(len(mail.outbox), 1)
 

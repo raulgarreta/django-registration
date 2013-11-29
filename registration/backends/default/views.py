@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.sites.models import RequestSite
 from django.contrib.sites.models import Site
+from django.contrib.auth import get_user_model
 
 from registration import signals
 from registration.models import RegistrationProfile
@@ -71,13 +72,24 @@ class RegistrationView(BaseRegistrationView):
         class of this backend as the sender.
 
         """
-        username, email, password = cleaned_data['username'], cleaned_data['email'], cleaned_data['password1']
+
+        username = cleaned_data[get_user_model().USERNAME_FIELD]
+        password = cleaned_data['password1']
+        other_fields = {}
+        field_name = set([field.name for field in get_user_model()._meta.fields]) - set(['id', get_user_model().USERNAME_FIELD])
+        for key in cleaned_data:
+            if key in field_name:
+                other_fields[key] = cleaned_data[key]
+
         if Site._meta.installed:
             site = Site.objects.get_current()
         else:
             site = RequestSite(request)
-        new_user = RegistrationProfile.objects.create_inactive_user(username, email,
-                                                                    password, site)
+        new_user = RegistrationProfile.objects.create_inactive_user(username,
+                                                                    password,
+                                                                    site,
+                                                                    **other_fields
+                                                                    )
         signals.user_registered.send(sender=self.__class__,
                                      user=new_user,
                                      request=request)
